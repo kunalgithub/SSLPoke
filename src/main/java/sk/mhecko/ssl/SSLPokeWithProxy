@@ -1,6 +1,91 @@
-SSLPoke with Proxy
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.Socket;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
-Usage 
-```
-java SSLPoke host 443 --proxy=proxyIP:proxyPort
-```
+/**
+ * Establish a SSL connection to a host and port, writes a byte and
+ * prints the response. See
+ * http://confluence.atlassian.com/display/JIRA/Connecting+to+SSL+services
+ */
+public class SSLPoke {
+
+    private static final Pattern PATTERN = Pattern.compile(
+            "^(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])$");
+
+    public static void main(String[] args) throws IOException {
+        if (args.length < 2) {
+            System.out.println("Usage: " + SSLPoke.class.getName() + " <host> <port>");
+            System.out.println("Usage: Additionally Supply Proxy : " + SSLPoke.class.getName() + "" +
+                    "<host> <port> --proxy=proxyHost:proxyPort");
+            System.exit(1);
+        }
+
+        InetSocketAddress inetSocketAddress = getProxy(args);
+        boolean proxyEnabled = inetSocketAddress != null;
+        Socket socket = null;
+
+        if (proxyEnabled) {
+            Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("172.19.133.90", 3128));
+            socket = new Socket(proxy);
+            InetSocketAddress address = new InetSocketAddress(args[0], 443);
+            socket.connect(address);
+        }
+
+        try {
+            SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            SSLSocket sslsocket = null;
+            if (proxyEnabled) {
+                sslsocket = (SSLSocket) sslsocketfactory.createSocket(socket, args[0], Integer.parseInt(args[1]),
+                        true);
+            } else {
+                sslsocket = (SSLSocket) sslsocketfactory.createSocket(args[0], Integer.parseInt(args[1]));
+            }
+            InputStream in = sslsocket.getInputStream();
+            OutputStream out = sslsocket.getOutputStream();
+            out.write(1);
+            while (in.available() > 0) {
+                System.out.print(in.read());
+            }
+            System.out.println("Successfully connected");
+
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    public static InetSocketAddress getProxy(String[] args) {
+        Optional<String> optProxy = Arrays.stream(args).filter(arg -> arg.startsWith("--proxy")).findFirst();
+        if (optProxy.isPresent() && optProxy.get().split("=").length > 1 &&
+                optProxy.get().split("=")[1].split(":").length > 1) {
+            String[] proxy = optProxy.get().split("=")[1].split(":");
+            try {
+                if (!validate(proxy[0])) {
+                    System.out.println("Not a valid IP");
+                    System.exit(1);
+                }
+                return new InetSocketAddress(proxy[0], Integer.valueOf(proxy[1]));
+            } catch (Throwable e) {
+                System.out.println("PROXY FORMAT --proxy=IP:PORT");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        }
+        System.out.println("PROXY NOT PROVIDED");
+        return null;
+    }
+
+    public static boolean hasProxyFlag(String[] args) {
+        Optional<String> optProxy = Arrays.stream(args).filter(arg -> arg.startsWith("--proxy")).findFirst();
+        return optProxy.isPresent();
+    }
+
+    public static boolean validate(final String ip) {
+        return PATTERN.matcher(ip).matches();
+    }
+}

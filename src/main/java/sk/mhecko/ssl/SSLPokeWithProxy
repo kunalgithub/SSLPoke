@@ -13,15 +13,15 @@ import java.util.regex.Pattern;
  * prints the response. See
  * http://confluence.atlassian.com/display/JIRA/Connecting+to+SSL+services
  */
-public class SSLPoke {
+public class SSLPokeWithProxy {
 
     private static final Pattern PATTERN = Pattern.compile(
             "^(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])$");
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
-            System.out.println("Usage: " + SSLPoke.class.getName() + " <host> <port>");
-            System.out.println("Usage: Additionally Supply Proxy : " + SSLPoke.class.getName() + "" +
+            System.out.println("Usage: " + SSLPokeWithProxy.class.getName() + " <host> <port>");
+            System.out.println("Usage: Additionally Supply Proxy : " + SSLPokeWithProxy.class.getName() + "" +
                     "<host> <port> --proxy=proxyHost:proxyPort");
             System.exit(1);
         }
